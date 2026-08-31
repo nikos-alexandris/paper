@@ -1,0 +1,14 @@
+\begin{tikzpicture}
+    \node (fig1) {
+        \input{figures/memory-layout1.tikz}
+    };
+
+    \node (fig2) [right=3cm of fig1] {
+        \input{figures/memory-layout2.tikz}
+    };
+
+    \coordinate (arrow-start) at ([xshift=0.8cm]fig1.east);
+    \coordinate (arrow-end)   at ([xshift=-0.3cm]fig2.west);
+
+    \draw[->, thick] (arrow-start) -- (arrow-end);
+\end{tikzpicture}

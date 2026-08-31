@@ -1,0 +1,42 @@
+\begin{tikzpicture}[
+    list/.style={
+      rectangle split, rectangle split parts=2, draw,
+      rectangle split horizontal},
+    cell/.style={
+      rectangle split, rectangle split parts=2, draw,
+      rectangle split horizontal,fill=cyan,fill opacity=0.5, text opacity=1,
+      draw opacity=1},
+    box/.style={rectangle, draw, minimum width=0.5cm, minimum height=0.5cm},
+    arr/.style = {draw=#1, thick,
+                 {Circle[length=6pt,sep=-3pt]}-{Stealth[width=6pt]}},
+    >=stealth, node distance=2.5cm]
+  \node[rectangle,draw] (XSP) {};
+  \node[rectangle] (XS)[left of=XSP,xshift=2cm] {\texttt{xs}};
+  \node[list] (E1)[above of=XSP,xshift=0.5cm,yshift=-1.5cm] {
+    \green{\texttt{E}}};
+  \node[list] (E2)[right of=E1,xshift=-1cm] {
+    \green{\texttt{E}}};
+  \node[list] (E3)[right of=E2,xshift=-1cm] {
+    \green{\texttt{E}}};
+  \node[list] (E4)[right of=E3,xshift=-1cm]
+    {\green{\texttt{E}} \nodepart{second} \texttt{[]}};
+  \node[cell] (C1)[above of=E1,xshift=0.7cm,yshift=-1.5cm] {};
+  \node[cell] (C2)[right of=C1,xshift=-1cm] {};
+  \node[cell] (C3)[right of=C2,xshift=-1cm] {};
+  \node[list] (NE2)[above of=C2,yshift=-1.5cm]
+    {\green{\texttt{E}} \nodepart{second} 2};
+  \node[list] (NE1)[above of=C1,yshift=-1.5cm]
+    {\green{\texttt{E}} \nodepart{second} 1};
+  \node[list] (NE3)[above of=C3,yshift=-1.5cm]
+    {\green{\texttt{E}} \nodepart{second} 3};
+  \path[arr] (XSP.center) -- (E1);
+  \path[arr] (E1.two north |- E1.two east) -- (C1);
+  \path[arr] (E2.two north |- E2.two east) -- (C2);
+  \path[arr] (E3.two north |- E3.two east) -- (C3);
+  \path[arr] (C1.two north |- C1.two east) -- (E2);
+  \path[arr] (C2.two north |- C2.two east) -- (E3);
+  \path[arr] (C3.two north |- C3.two east) -- (E4);
+  \path[arr] (C1.one north |- C1.one east) -- (NE1);
+  \path[arr] (C2.one north |- C2.one east) -- (NE2);
+  \path[arr] (C3.one north |- C3.one east) -- (NE3);
+\end{tikzpicture}

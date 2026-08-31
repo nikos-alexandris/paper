@@ -1,0 +1,24 @@
+\begin{tikzpicture}[
+    list/.style={
+      rectangle split, rectangle split parts=2, draw,
+      rectangle split horizontal},
+    cell/.style={
+      rectangle split, rectangle split parts=2, draw,
+      rectangle split horizontal,fill=cyan,fill opacity=0.5, text opacity=1,
+      draw opacity=1},
+    box/.style={rectangle,draw},
+    boxinv/.style={rectangle},
+    arr/.style = {draw=#1, thick,
+                 {Circle[length=6pt,sep=-3pt]}-{Stealth[width=6pt]}},
+    >=stealth, start chain]
+  \node[cell,on chain] (B) {$1$};
+  \node[cell, on chain] (C) {$2$};
+  \node[cell, on chain] (D) {$3$};
+  \node[on chain] (E) {\texttt{[]}};
+  \node[box] (XSP)[left of=B,xshift=-0.5cm,yshift=-0.5cm] {};
+  \node[boxinv] (XS)[left of=XSP,xshift=0.5cm] {\texttt{xs}};
+  \path[arr=black] (XSP.center) -- (B);
+  \path[arr=black] (B.two north |- B.two east) -- (C);
+  \path[arr=black] (C.two north |- C.two east) -- (D);
+  \path[arr=black] (D.two north |- D.two east) -- (E);
+\end{tikzpicture}
