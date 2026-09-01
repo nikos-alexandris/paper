@@ -15,15 +15,25 @@
   \department{Department of Informatics and Telecommunications}
   \city{Athens}
   \country{Greece}}
-\email{nikos-alexandris@protonmail.com}
+\email{nalex@di.uoa.gr}
+
+\author{Magnus O. Myreen}
+\affiliation{%
+  \institution{Chalmers University of Technology}
+  \city{Gothenburg}
+  \country{Sweden}}
+\email{myreen@chalmers.se}
 
 \begin{abstract}
-  A clear and well-documented \LaTeX\ document is presented as an
-  article formatted for publication by ACM in a conference proceedings
-  or journal publication. Based on the ``acmart'' document class, this
-  article presents and explains many of the common variations, as well
-  as many of the formatting elements an author may use in the
-  preparation of the documentation of their work.
+  Programming languages that are lazy by default, such as Haskell, need their
+  compilers to handle thunks as efficiently as possible to minimise the lazy
+  behaviour's impact on the runtime. This is achieved both during compile time
+  by avoiding the generation of unnecessary thunks, and during the runtime by
+  replacing evaluated thunks with their values during garbage collection. In
+  this work, we refine the representation of thunks in the PureCake verified
+  compiler for pure lazy languages, we introduce thunks as first-class values in
+  PureCake's compilation target CakeML, and we add thunks to runtime and adapt
+  the garbage collector to optimise their usage.
 \end{abstract}
 
 \keywords{Compiler Verification, Lazy Functional Programming, Theorem Proving,
@@ -40,6 +50,8 @@
 \maketitle
 
 \section{Introduction}
+PureCake is the first end-to-end formally verified 
+
 ACM's consolidated article template, introduced in 2017, provides a
 consistent \LaTeX\ style for use across ACM publications, and
 incorporates accessibility and metadata-extraction functionality
