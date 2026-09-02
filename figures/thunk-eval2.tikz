@@ -1,0 +1,19 @@
+\begin{tikzpicture}[
+    list/.style={
+      rectangle split, rectangle split parts=2, draw,
+      rectangle split horizontal},
+    box/.style={rectangle, draw, minimum width=0.5cm, minimum height=0.5cm},
+    arr/.style = {draw=#1, thick,
+                 {Circle[length=6pt,sep=-3pt]}-{Stealth[width=6pt]}},
+    >=stealth, node distance=2.5cm]
+  \node[list] (B) {
+    \color{red}{\texttt{NE}}
+    \nodepart{second}
+    $\lambda \code{\_}.\code{x + 1}$};
+  \node[rectangle,draw] (XSP)[below of=B,yshift=1cm,xshift=-1cm] {};
+  \node[rectangle] (XS)[left of=XSP,xshift=2cm] {\code{x}};
+  \path[arr=black] (XSP.center) -- (B);
+  \node[rectangle,draw] (XSP2)[below of=B,yshift=1cm,xshift=1cm] {};
+  \node[rectangle] (XS2)[left of=XSP2,xshift=2cm] {\code{x}};
+  \path[arr=black] (XSP2.center) -- (B);
+\end{tikzpicture}

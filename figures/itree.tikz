@@ -1,0 +1,15 @@
+\begin{tikzpicture}
+  \tikzstyle{box} = [
+    rectangle, rounded corners,text centered, draw=orange!80, line width=0.75pt]
+  \node (box1) [box, draw=blue!80] {\StateLang{}};
+  \node (box2) [box, right=0.85cm of box1] {
+    \shortstack {CakeML source \\ ITree semantics}};
+  \node (box3) [box, below=0.45cm of box2, label={$\cong$}] {CakeML source};
+  \node (box4) [box, below=0.45 of box3] {\FlatLang{}};
+  \node (box5) [box, below=0.45cm of box4] {\ClosLang{}};
+  \node (box6) [rectangle, below=0.45cm of box5] {$\cdots$};
+  \draw[-stealth] (box1.east) -- (box2.west) node[]{};
+  \draw[-stealth] (box3.south) -- (box4.north) node[]{};
+  \draw[-stealth] (box4.south) -- (box5.north) node[]{};
+  \draw[-stealth] (box5.south) -- (box6.north) node[]{};
+\end{tikzpicture}

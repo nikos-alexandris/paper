@@ -1,0 +1,29 @@
+\begin{tikzpicture}[
+    list/.style={
+      rectangle split, rectangle split parts=2, draw,
+      rectangle split horizontal},
+    cell/.style={
+      rectangle split, rectangle split parts=2, draw,
+      rectangle split horizontal,fill=cyan,fill opacity=0.5, text opacity=1,
+      draw opacity=1},
+    box/.style={rectangle, draw, minimum width=0.5cm, minimum height=0.5cm},
+    arr/.style = {draw=#1, thick,
+                 {Circle[length=6pt,sep=-3pt]}-{Stealth[width=6pt]}},
+    >=stealth, node distance=2.5cm]
+  \node[rectangle,draw] (XSP) {};
+  \node[rectangle] (XS)[left of=XSP,xshift=2cm] {\texttt{xs}};
+  \node[list] (E1)[right of=XSP,yshift=0.5cm,xshift=-0.8cm] {
+    \green{\texttt{E}}};
+  \node[cell] (M)[above of=E1,yshift=-1cm,xshift=0.5cm] {};
+  \node[list] (E2)[above of=M,yshift=-1cm,xshift=-1cm] {
+      \green{\texttt{E}}
+    \nodepart{second} 1};
+  \node[list] (NE)[above of=M,yshift=-1cm,xshift=1.5cm] {
+    \red{\texttt{NE}}
+    \nodepart{second}
+    $\lambda x.\texttt{[}2,3\texttt{]}$};
+  \path[arr] (XSP.center) -- (E1);
+  \path[arr] (E1.two north |- E1.two east) -- (M);
+  \path[arr] (M.one north |- M.one east) -- (E2);
+  \path[arr] (M.two north |- M.two east) -- (NE);
+\end{tikzpicture}

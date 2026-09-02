@@ -14,6 +14,7 @@
 \newcommand{\StateLang}{\code{StateLang}}
 \newcommand{\FlatLang}{\code{FlatLang}}
 \newcommand{\ClosLang}{\code{ClosLang}}
+\newcommand{\WordLang}{\code{WordLang}}
 
 % \overfullrule=15pt
 
@@ -126,7 +127,7 @@ thunk will always be the same regardless of when we evaluate it. So, ideally, we
 should only compute it once and then memoise its value for the rest of the
 \code{force}s.
 
-This problem is solved in \StateLang{}. \StateLang{}'s semantics employ a
+This problem is solved in \StateLang{}. \StateLang{}'s semantics employs a
 mutable memory called a store. Each time a \code{delay} is executed, a thunk is
 produced and appended to the store along with a flag stating that the thunk has
 not yet been evaluated. Then, the first \code{force} demanding the thunk's value
@@ -161,6 +162,7 @@ that must evaluate to a thunk.
     {|[\code{force}\ x|] = u}
   \]
   \caption{Derivation rules of \ThunkLang{}'s thunk operators}
+  \Description{Derivation rules of \ThunkLang{}'s thunk operators}
 \end{figure}
 Our first change is to refine this semantics by asserting that the evaluation of
 a \code{force} can never result in another thunk. This should always be true and
@@ -172,6 +174,7 @@ we carry this assertion all the way down to the garbage collection proofs.
     {|[\code{force}\ x|] = u}
   \]
   \caption{Stronger version of \code{force}}
+  \Description{Stronger version of \code{force}}
 \end{figure}
 
 Since PureCake is formally verified, it's our responsibility to prove this
@@ -231,7 +234,7 @@ they must be wrapped in thunks. Therefore, any value acquired by \code{input} or
 \code{return} or any other returning monadic action must be delayed. However,
 these monadic actions can also be called and chained by other monadic actions,
 where it's not necessary to wrap the results in thunks. Thus, in \ThunkLang{}
-the semantics of the monadic operators themselves are strict, and there is a
+the semantics of the monadic operators themselves is strict, and there is a
 step during the translation from PureCake's source language to \ThunkLang{} that
 wraps the program's monadic actions that need thunks with \code{delay}s. For
 example, whenever there is a call to \code{input} in the source language, in
@@ -241,7 +244,7 @@ wrap it in a thunk since the monadic interpreter does not do this on its own.
 
 This behaviour is crucial for performance since it avoids the allocation of
 unnecessary thunks during monadic computations. Unfortunately though, it
-invalidates our invariant.
+invalidates our invariant as we will examine now.
 
 One of the optimisations PureCake implements is the transformation of
 \hsinl{delay (force (x))} expressions to just \code{x}. To prove it, we must
@@ -258,6 +261,12 @@ delayed.
 \begin{figure}[h]
   \centering
   \input{figures/monadic-before.tikz}
+  \caption{
+    Translation of monadic expressions from PureCake source to
+    \ThunkLang{} prior to this work.}
+  \Description{
+    Translation of monadic expressions from PureCake source to
+    \ThunkLang{} prior to this work.}
 \end{figure}
 
 To mitigate this issue we carried out a 4-step plan:
@@ -275,91 +284,390 @@ To mitigate this issue we carried out a 4-step plan:
 \begin{figure}[h]
   \centering
   \input{figures/monadic-after.tikz}
+  \caption{
+    Adapted translation of monadic expressions from PureCake source to
+    \ThunkLang{}}
+  \Description{
+    Adapted translation of monadic expressions from PureCake source to
+    \ThunkLang{}}
 \end{figure}
+This change enables us to have an unoptimised monadic interpreter that we can
+target for our optimisation so we can prove the transition, and keep the
+optimised interpreter with a transformation between the two so we don't affect
+the overall performance.
 
 \subsection{Stateful Thunk Semantics}
 
-\subsection{Template Styles}
+\StateLang{} is the last intermediate representation in the PureCake pipeline,
+and the boundary between PureCake and CakeML. It is also the only intermediate
+representation with a stateful semantics which means it can represent stateful
+thunks. Before \StateLang{}, thunks are stateless; when evaluating an expression
+like \hsinl{(force f) (delay ((force g) x))}, the argument \code{g x} is turned
+into a thunk value and whenever the corresponding parameter is used in the body
+of f, the expression \code{g x} is computed anew without the possibility of
+memoising the result, as that would require some stateful operation.
 
-The primary parameter given to the ``\verb|acmart|'' document class is
-the {\itshape template style} which corresponds to the kind of publication
-or SIG publishing the work. This parameter is enclosed in square
-brackets and is a part of the {\verb|documentclass|} command:
-\begin{verbatim}
-  \documentclass[STYLE]{acmart}
-\end{verbatim}
+\StateLang{}'s semantics provide a solution for this problem by employing a
+mutable state. This state is a store for mutable arrays, where each array
+element can be mutated in place.
 
-Journals use one of three template styles. All but three ACM journals
-use the {\verb|acmsmall|} template style:
-\begin{itemize}
-\item {\texttt{acmsmall}}: The default journal template style.
-\item {\texttt{acmlarge}}: Used by JOCCH and TAP.
-\item {\texttt{acmtog}}: Used by TOG.
-\end{itemize}
+Thunks in \StateLang{} exist in two forms: stateless and stateful. The stateless
+thunks are the same as in the previous intermediate representations, and exist
+so that compilation from \EnvLang{} can directly target them. Prior to this
+work, \StateLang{}'s store is used to implement stateful thunks in an ad-hoc
+way. Instead of having a proper representation for thunks, a thunk is
+represented as a two value array: the first value is a boolean flag and the
+second value is the actual value. When a thunk is needed, the array is allocated
+with the flag set to signal that the thunk is not yet evaluated, and the second
+value being a closure that when applied to unit computes the thunk's value. When
+a \code{force} encounters such a value, it checks the flag in the first place of
+the array and, if it is set it immediately returns the value in the second
+place. If it is not set, it applies the second value to unit, replaces the
+function with the value, sets the flag and finally returns the value.
 
-The majority of conference proceedings documentation will use the {\verb|acmconf|} template style.
-\begin{itemize}
-\item {\texttt{sigconf}}: The default proceedings template style.
-\item{\texttt{sigchi}}: Used for SIGCHI conference articles.
-\item{\texttt{sigplan}}: Used for SIGPLAN conference articles.
-\end{itemize}
+The way \StateLang{}'s store is implemented is not arbitrary; it has the same
+form as CakeML's store. However, both of them needed to change to make the
+handling of thunks explicit. Therefore, we changed the type of
+\StateLang{}'s store from \hsinl{[[Value]]} (an array of arrays of values) to
+\hsinl{[StoreV]}, where \hsinl{StoreV} is defined as
+\begin{minted}{haskell}
+data StoreV
+  = Array [Value]
+  | ThunkMem ThunkMode Value
+\end{minted}
+and \hsinl{ThunkMode} is defined as
+\begin{minted}{haskell}
+  data ThunkMode
+    = Evaluated
+    | NotEvaluated
+\end{minted}
+With this defined, the mutable force semantics is as follows: the evaluation
+first checks that the index is in bounds of the store and then checks the value
+of the store. If the index does not point to a thunk it's trivially an error. If
+the value is an evaluated thunk, we just return the stored value. Lastly, if the
+value is an unevaluated thunk, we first want to apply the stored closure to
+\hsinl{Unit} to evaluate the thunk and then update the thunk in the store.
+\begin{minted}{haskell}
+application ForceMutThunk [i] st k =
+  if i >= length st then Error else
+  case st[i] of
+    ThunkMem Evaluated v -> (Value v, st, k)
+    ThunkMem NotEvaluated f ->
+      application App [f, Unit] st (ForceMutK i :: k)
+    _ -> Error
+\end{minted}
+Because of the small-step semantics this cannot be done directly in the same
+function. First, the evaluation must take enough steps that the application of
+\code{f} to \hsinl{Unit} will complete, and this is why we push a
+\hsinl{ForceMutK} continuation which will be evaluated by the \hsinl{return}
+function which pops a continuation off the stack on the return of an application
+and evaluates it with the result of the application as the first argument
+\code{v}:
+\begin{minted}{haskell}
+return v st (ForceMutK i :: k) =
+  if i >= length st || (is_thunk v) then Error else
+  case st[i] of
+    ThunkMem NotEvaluated _ ->
+      (Value v, update st i (ThunkMem Evaluated v), k)
+  _ -> Error
+\end{minted}
+We can see that it takes the result of the application and updates the store
+with an evaluated thunk storing the value. We also note the \code{is\_thunk}
+check, which is the same assertion we have added to all the \code{force}
+semantics from \ThunkLang{} onward.
 
-\subsection{Template Parameters}
+With this semantics in mind, we can now explain why it's problematic for our
+invariant. Consider the simple recursive declaration
+\hsinl{x = x + 1}. When \code{x} is evaluated, an unevaluated thunk is created in
+the store with the expression \code{x + 1}.
+\begin{figure}[h]
+  \centering
+  \input{figures/thunk-eval1.tikz}
+  \caption{Beginning of thunk evaluation}
+  \Description{Beginning of thunk evaluation}
+  \label{fig:thunk-eval1}
+\end{figure}
+When \code{force} is called on \code{x}, the \code{+} operator will again cause
+a \code{force} of \code{x} leading to two evaluations trying to update the same
+thunk in the store. If one of these computations were to finish, the other would
+find an evaluated thunk in the store and try to update it which is undesirable.
+\begin{figure}[h]
+  \centering
+  \input{figures/thunk-eval2.tikz}
+  \caption{Thunk evaluation conflict}
+  \Description{Thunk evaluation conflict}
+  \label{fig:thunk-eval2}
+\end{figure}
+We observe here that once this situation arises, it is impossible for one of the
+computations to terminate, because each \code{force} would have to wait for the
+next \code{force} to finish, which essentially creates an infinite loop. This is
+also evident from the program, since the value of \code{x} depends directly on
+the \code{force}d value of itself. Therefore, this condition is not problematic
+on its own since the computation will never finish and the thunk will never be
+evaluated, but the behaviour must nevertheless be modelled so the semantics can
+be proved equivalent.
 
-In addition to specifying the {\itshape template style} to be used in
-formatting your work, there are a number of {\itshape template parameters}
-which modify some part of the applied template style. A complete list
-of these parameters can be found in the {\itshape \LaTeX\ User's Guide.}
+This is reminiscent of the black hole problem in Haskell
+\cite{van1999optimising}. In Haskell, the runtime representation of thunks does
+not have a binary flag, evaluated and not evaluated, as we have described for
+our thunks. Instead, it has three possible values: evaluated, not evaluated and
+evaluating. When a thunk starts getting evaluated, the evaluating flag is set.
+Then, if a \code{force} tries to update an evaluating thunk, the runtime system
+detects that as an infinite loop and throws an exception. However, in our
+semantics we prove that if we try to force an evaluating thunk we will
+eventually diverge, so we only have to handle the evaluating and not evaluating
+cases in the rest of our proofs and in the runtime.
 
-Frequently-used parameters, or combinations of parameters, include:
-\begin{itemize}
-\item {\texttt{anonymous,review}}: Suitable for a ``double-anonymous''
-  conference submission. Anonymizes the work and includes line
-  numbers. Use with the \texttt{\string\acmSubmissionID} command to print the
-  submission's unique ID on each page of the work.
-\item{\texttt{authorversion}}: Produces a version of the work suitable
-  for posting by the author.
-\item{\texttt{screen}}: Produces colored hyperlinks.
-\end{itemize}
+To prove this situation is impossible to arise, we turn to the unthunking pass
+of \StateLang{} where, as mentioned earlier, the stateless thunks are compiled
+to stateful ones. The \hsinl{step} function that implements the small-step
+semantics evaluates the stateless thunks in a similar way to the stateful
+semantics we described. When the \hsinl{step} function encounters a \code{force},
+it evaluates the enclosed expression and pushes a \hsinl{ForceK} continuation to
+the stack. Then, the \hsinl{return} function pops the continuation, asserts that
+the result is not a thunk and returns the computed value.
 
-This document uses the following string as the first command in the
-source file:
-\begin{verbatim}
-\documentclass[sigconf]{acmart}
-\end{verbatim}
+Our solution to the problem was to create wrapper functions \hsinl{step'} and
+\hsinl{return'} around \hsinl{step} and \hsinl{return}, that remember which
+thunks are currently in the process of evaluation.
+\begin{minted}{haskell}
+return' avoid v st (ForceK :: k) =
+  if member v avoid
+    then Error
+    else return v st (ForceK :: k)
 
-\section{Modifications}
+step' avoid st k (Value v) = return' avoid v st k
+step' avoid st k x = step st k x
+\end{minted}
+These wrapper functions essentially intercept the evaluation of \code{force}s and
+check for each one if the thunk they are trying to evaluate is in the set of
+currently evaluating thunks, called the $avoid$ set. We then prove the
+following theorem:
+\begin{theorem} For any unevaluated stateless thunk t, if
+  computing the result of its value with set $avoid$ terminates
+  successfully after $m$ steps, then the computation terminates with the same
+  result after the same number of steps with set $avoid \cup \{t\}$.
+\end{theorem}
+\renewcommand*{\proofname}{Proof outline}
+\begin{proof}
+  If $t \in avoid$ then it's trivial since $avoid \cup \{t\} = avoid$.
+  If $t \notin avoid$ then we distinguish two cases:
+  \begin{itemize}
+    \item If there exists $n < m$ such that in the $n$'th step we call
+      \code{force} on $t$ then our theorem would not hold, because adding $t$ to
+      $avoid$ would trigger an error at this step. However, if such $n$ existed,
+      then the result of $n+1$ steps would be the same expression as we started
+      with, namely the evaluation of the thunk expression. Thus, every $n$ steps
+      the computation loops, which leads to contradiction because we started
+      with the assumption that the evaluation of the thunk terminates after $m$
+      steps.
+    \item On the other hand, if no such $n$ exists, the \hsinl{step'} function
+      does not encounter a \code{force} for $t$, and therefore it is safe to add
+      it to $avoid$ without producing any errors that the wrapped \hsinl{step}
+      function didn't produce before.
+  \end{itemize}
+\end{proof}
 
-Modifying the template --- including but not limited to: adjusting
-margins, typeface sizes, line spacing, paragraph and list definitions,
-and the use of the \verb|\vspace| command to manually adjust the
-vertical spacing between elements of your work --- is not allowed.
+Finally, we modified the unthunking proof to use the \hsinl{step'} semantics and
+proved the equivalence of the stateless and stateful semantics, bypassing the
+non-termination problem by using \code{add\_to\_avoid}.
 
-{\bfseries Your document will be returned to you for revision if
-  modifications are discovered.}
+To summarise, this chapter was concerned with making the semantics of forcing
+stricter in PureCake, so the equivalent semantics in CakeML can have this strict
+behaviour. We described the changes to the semantics and optimisation pipelines
+throughout the PureCake project, and gave a detailed account of the challenges
+that arose naturally due to the strengthening of the semantics. We also outlined
+our solutions and proof processes we used to overcome these obstacles and verify
+our semantics are correct. We will now move over to the CakeML side of the
+project and explore the changes we had to implement there to complete our work.
 
-\section{Typefaces}
+\section{Adding Thunks to CakeML}
 
-The ``\verb|acmart|'' document class requires the use of the
-``Libertine'' typeface family. Your \TeX\ installation should include
-this set of packages. Please do not substitute other typefaces. The
-``\verb|lmodern|'' and ``\verb|ltimes|'' packages should not be used,
-as they will override the built-in typeface families.
+The CakeML source semantics is defined in functional big-step style like
+PureCake source semantics. Its functional big step semantics is easy to
+understand at a high level, but is not immediately appropriate for compilation
+from PureCake. For this reason, an alternative semantics exists based on
+Interaction Trees, that PureCake can directly target to compile its stateful
+operations.
+\begin{figure}[h]
+  \centering
+  \input{figures/itree.tikz}
+  \caption{Compiler structure after \StateLang{}}
+  \Description{Compiler structure after \StateLang{}}
+\end{figure}
 
-\section{Title Information}
+Similarly to our \StateLang{} changes, we define three stateful thunk operations
+\hsinl{AllocThunk}, \hsinl{UpdateThunk}, and \hsinl{ForceThunk}. A \hsinl{Thunk}
+constructor is also added to the mutable store, as we did in \StateLang{}, with
+an \hsinl{Evaluated} or \hsinl{NotEvaluated} flag. We do not need stateless
+thunks here as we did in \StateLang{}, as they were merely a stepping stone
+between the semantics of \EnvLang{} which only has stateless thunks and CakeML
+which we only wanted to have stateful thunks. More explicitly, thunks in CakeML
+are only added as targetable operations when constructing a CakeML program as a
+syntax tree and not by pasing concrete syntax.
 
-The title of your work should use capital letters appropriately -
-\url{https://capitalizemytitle.com/} has useful rules for
-capitalization. Use the {\verb|title|} command to define the title of
-your work. If your work has a subtitle, define it with the
-{\verb|subtitle|} command.  Do not insert line breaks in your title.
+We now describe the semantics of our operations in CakeML. This semantics stays
+the same between most of the intermediate languages. \hsinl{AllocThunk} accepts
+a single value, appends it to the state and returns the updated state and a
+reference to the newly allocated thunk as a result. The \hsinl{False} flag in
+the reference states that equality of references for this type should be done
+by index and not structurally. Two thunks are the same if and only if they refer
+to the same exact thunk in the store. CakeML's store supports other types such
+as byte arrays that can be compared by value.
+\begin{minted}{haskell}
+eval (AllocThunk m) st [v] =
+  let st' = st ++ [Thunk m v] in
+  (st', Ref False (length st))
+\end{minted}
+Similarly to \StateLang{}, \hsinl{UpdateThunk} accepts an index to the store and
+a value, checks if the reference is an unevaluated thunk and returns the updated
+store and \hsinl{Unit} as the result.
+\begin{minted}{haskell}
+eval (UpdateThunk m) st [Ref _ i, v] =
+  if i >= length st then Error else
+  case st[i] of
+    Thunk NotEvaluated _ ->
+      (update st i (Thunk Evaluated v), Unit)
+    _ -> Error
+\end{minted}
 
-If your title is lengthy, you must define a short version to be used
-in the page headers, to prevent overlapping text. The \verb|title|
-command has a ``short title'' parameter:
-\begin{verbatim}
-  \title[short title]{full title}
-\end{verbatim}
+The remaining operator, \hsinl{Force}, is more contrived. We need to make sure
+that all the invariants we proved correct during the PureCake compilation are
+present here too. First, we define a function that decides whether a reference
+in the store is a thunk or not:
+\begin{minted}{haskell}
+dest_thunk [Ref _ i] st =
+  if i >= length st then BadRef else
+  case st[i] of
+    Thunk Evaluated v -> IsThunk Evaluated v
+    Thunk NotEvaluated f -> IsThunk NotEvaluated f
+    _ -> NotThunk
+\end{minted}
+We discriminate between three possible results: \hsinl{BadRef} when the
+reference is out of bounds, \hsinl{NotThunk} when the reference points to
+something other than a thunk, and \hsinl{IsThunk} which returns the thunk's mode
+and value. The reason we have different failing modes for out of bounds accesses
+and references to wrong values will be explained shortly. Then, we define a
+function that updates a thunk:
+\begin{minted}{haskell}
+update_thunk [Ref _ i] st [v] =
+  case dest_thunk [v] st of
+    NotThunk -> Just (update st i (Thunk Evaluated v))
+    _ -> Nothing
+\end{minted}
+Finally, the semantics of \hsinl{ForceThunk} are implemented using these helper
+functions. First, we check that the input value is a thunk. Then, if it's an
+evaluated thunk we return the value. Otherwise we apply the unevaluated function
+to \hsinl{Unit} to evaluate it, and check the result: if it's a thunk, then it's
+an error because force mustn't result in a thunk, otherwise we return the result
+with the updated state.
+\begin{minted}{haskell}
+eval ForceThunk st vs =
+  case dest_thunk vs st of
+    BadRef | NotThunk -> Error
+    IsThunk Evaluated res -> (st, res)
+    IsThunk NotEvaluated f ->
+      case eval st [App f Unit] of
+        Error -> Error
+        (st', res) -> case update_thunk vs st' res of
+                        Nothing -> Error
+                        Just st'' -> (st'', res)
+\end{minted}
+The semantics of forcing stateful thunks here is the most important code sample
+in this thesis, as it captures exactly our desired semantics.
+
+This semantics is very similar for most of the rest of the intermediate
+languages, until we get to \WordLang{}, the language where the garbage collector
+is introduced. At this point, all the values are machine words and memory is a
+flat finite mapping from machine addresses to machine words, At this point, we
+have a representation of thunks as heap values and we also have a model for the
+garbage collection, and this enables us to optimise their usage during runtime.
+
+To understand why we want that we will work through a simple example of how a
+lazy list looks like during the runtime. Consider the evaluation of the
+expression \hsinl{xs = [1,2,3]}. In a strict language. The resulting data
+structure would look like a linked list, with a list of pairs each storing a
+number and a reference to the next pair in the list.
+\begin{figure}[h]
+  \centering
+  \input{figures/list-strict.tikz}
+  \caption{Strict list memory representation.}
+  \Description{Strict list memory representation.}
+\end{figure}
+However, in a lazy language the result is quite different. Initially, the result
+of evaluating \hsinl{xs = [1,2,3]} is only an unevaluated thunk (we denote the
+evaluated or unevaluated flag with {\green{\code{E}}} and {\red{\code{NE}}}
+respectively).
+\begin{figure}[h]
+  \centering
+  \input{figures/list-lazy.tikz}
+  \caption{Unevaluated lazy list memory representation.}
+  \Description{Unevaluated lazy list memory representation.}
+\end{figure}
+How much the data structure will be evaluated is only determined by the
+operations we apply to it.
+\begin{figure}[h]
+  \centering
+  \input{figures/list-lazy-first.tikz}
+  \caption{Lazy list after evaluating the first element.}
+  \Description{Lazy list after evaluating the first element.}
+\end{figure}
+For example, evaluating the expression \hsinl{head xs} demands the evaluation of
+the list's first element, but the rest of the list remains unevaluated. Another
+possibility is to only evaluate every second element of each list cell, also
+known as evaluating the spine of the list. This happens when we examine the
+structure of the list without caring about its contents, for example when
+evaluating \hsinl{length xs}.
+\begin{figure}[h]
+  \centering
+  \input{figures/list-lazy-spine.tikz}
+  \caption{Lazy list after evaluating the spine.}
+  \Description{Lazy list after evaluating the spine.}
+\end{figure}
+Lastly, a full evaluation would happen when we traverse the list (thus
+evaluating the spine) and also examining each stored element and therefore
+demanding its value too. An example of such an operation is \hsinl{sum xs} which
+returns the sum of every element in the list, therefore both traversing the
+whole list and demanding all its values.
+\begin{figure}[h]
+  \centering
+  \input{figures/memory-layout1.tikz}
+  \caption{Lazy list after full evaluation.}
+  \Description{Lazy list after full evaluation.}
+\end{figure}
+
+Conceptually, the result of fully evaluating the lazy list should be the same as
+having a fully evaluated strict list. However, because of the gradual evaluation
+process, the actual list cells exist in between two layers of thunks, which adds
+unnecessary indirections when we try to later access the elements.
+
+This is now achievable with our changes. We have modified CakeML's copying
+garbage collector so that when it encounters an evaluated thunk, it copies its
+contents to the target heap instead of the whole thunk. This means that after a
+collection, a list (or any data structure for that matter) that has been partly
+or fully evaluated will have the same memory representation for that part as if
+it had been strictly evaluated.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+This work has been a complete overhaul of how PureCake handles thunks throught
+its compilation pipeline, from the highest level down to the garbage collector
+and through numerous intermediate representations. This has come to show that
+our semantics is robust and correctly translateable to machine code and is to
+our knowledge the first end-to-end verified treatment of thunks and their
+behaviour.
+
+Our proofs have touched critical parts of the lifetime of thunks during
+compilation, such as their usage in the monadic interpreter and their
+transformation from immutable to mutable ones. We hope that our work will enable
+more optimisations around thunks to be implemented in the compiler, and in
+general for their behaviour to be better understood throughout the compilation
+process.
+
+We are also working on finishing up with the remaining proofs in \WordLang{} so
+we can verify and refine our runtime optimisations and publish performance
+metrics.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
