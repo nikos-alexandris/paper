@@ -3,6 +3,7 @@
 \usepackage{tikz}
 \usetikzlibrary{calc,shapes.multipart,chains,arrows,arrows.meta}
 \usepackage{minted}
+\usepackage{semantic}
 
 \newcommand{\green}[1]{\color{green}\color{.!80!black}{#1}}
 \newcommand{\red}[1]{\color{red}{#1}}
@@ -13,6 +14,8 @@
 \newcommand{\StateLang}{\code{StateLang}}
 \newcommand{\FlatLang}{\code{FlatLang}}
 \newcommand{\ClosLang}{\code{ClosLang}}
+
+% \overfullrule=15pt
 
 \begin{document}
 
@@ -60,6 +63,7 @@
 \maketitle
 
 \section{Introduction}
+\label{sec:intro}
 
 PureCake is an end-to-end formally verified compiler for PureLang, a
 Haskell-inspired lazy purely functional programming language with monadic
@@ -142,20 +146,138 @@ achieve these goals in PureCake:
 \item Optimising the runtime handling of thunks.
 \end{itemize}
 
-\section{Template Overview}
+\section{Strengthening the Semantics of \code{force} in PureCake}
 \label{sec:purecake}
-As noted in the introduction, the ``\verb|acmart|'' document class can
-be used to prepare many different kinds of documentation --- a
-double-anonymous initial submission of a full-length technical paper, a
-two-page SIGGRAPH Emerging Technologies abstract, a ``camera-ready''
-journal article, a SIGCHI Extended Abstract, and more --- all by
-selecting the appropriate {\itshape template style} and {\itshape
-  template parameters}.
+As noted in \autoref{sec:intro}, \ThunkLang{} is used as a phase to change the
+evaluation strategy from call-by-name to call-by-value with the addition of
+thunks to simulate laziness. A thunk is created by wrapping an expression in a
+\code{delay}, and its value is accessed by calling \code{force} on an expression
+that must evaluate to a thunk.
+\begin{figure}[h]
+  \[
+    \inference{}{|[\code{delay}\ e|] = \code{Thunk}\ e} \qquad
+    \inference
+    {|[x|] = \code{Thunk}\ e& |[e|] = u}
+    {|[\code{force}\ x|] = u}
+  \]
+  \caption{Derivation rules of \ThunkLang{}'s thunk operators}
+\end{figure}
+Our first change is to refine this semantics by asserting that the evaluation of
+a \code{force} can never result in another thunk. This should always be true and
+we carry this assertion all the way down to the garbage collection proofs.
+\begin{figure}[h]
+  \[
+    \inference
+    {|[x|] = \code{Thunk}\ e& |[e|] = u& \nexists t.\ u = \code{Thunk}\ t}
+    {|[\code{force}\ x|] = u}
+  \]
+  \caption{Stronger version of \code{force}}
+\end{figure}
 
-This document will explain the major features of the document
-class. For further information, the {\itshape \LaTeX\ User's Guide} is
-available from
-\url{https://www.acm.org/publications/proceedings-template}.
+Since PureCake is formally verified, it's our responsibility to prove this
+assertion after each transformation the program goes through. A transformation
+is a pair of relations $(R_e,R_v)$ which relate two expressions and two values
+(the results of evaluating the related expressions) respectively. These
+transformations is the way optimisations and lowering from one intermediate
+language to another are implemented.
+
+To prove that optimisations in \ThunkLang{} preserve our assertion, we have to
+prove that the relation implementing the optimisation doesn't invalidate it.
+Formally, for each relation we prove this theorem:
+\begin{theorem}[\code{exp\_rel\_eval}]
+  \label{thm:releval}
+  For a transformation $(R_e,R_v)$ and any expressions $e_1,e_2$, if $e_1$ and
+  $e_2$ are related under $R_e$ and $eval(e_1)$ is not an error, then the
+  results of $eval(e_1)$ and $eval(e_2)$ must be related under $R_v$.
+\end{theorem}
+Throughout the rest of \autoref{sec:purecake} we will discuss two interesting
+transformations in the PureCake code for which this invariant doesn't trivially
+hold and how we fixed them.
+
+\subsection{Thunks and Monadic Effects}
+\label{subsec:thunks-and-monads}
+PureCake like most other pure functional languages employs monads to model
+effectful computations. The evaluation of a \ThunkLang{} program at the top
+level looks like a loop over monadic actions that might possibly interact with
+state, such as writing and reading from a mutable array or writing to the
+console. Internally, these operations call the usual pure semantics without
+exposing any of the state that is being handled.
+
+On the side of verification, PureCake uses Interaction Tree Semantics to reason
+about such stateful computations. Interaction trees support the definition of
+interpreters that handle monadic actions, and bisimulation proofs can be used to
+show equivalence between interaction trees, in a similar fashion to the proofs
+we described for program transformations.
+
+Let's consider a simple function that interleaves pure computation with side
+effects:
+\begin{minted}{haskell}
+foo :: Int -> IO Int
+foo x = do
+  let y = f x
+  print y
+  z <- input
+  return z
+\end{minted}
+When this function is run, the \code{let} expression will be evaluated first.
+Its result will then be printed to the terminal using the stateful \code{print}
+function. Then, \code{input} is used to read an integer from the terminal and
+unwraps it to the pure value \code{z}, which is then wrapped in a monadic value
+by \code{return} so it matches the return type of the function. This
+back-and-forth between pure and impure evaluation is modelled by the IO monad.
+
+Because the results of stateful computations can be used by regular functions,
+they must be wrapped in thunks. Therefore, any value acquired by \code{input} or
+\code{return} or any other returning monadic action must be delayed. However,
+these monadic actions can also be called and chained by other monadic actions,
+where it's not necessary to wrap the results in thunks. Thus, in \ThunkLang{}
+the semantics of the monadic operators themselves are strict, and there is a
+step during the translation from PureCake's source language to \ThunkLang{} that
+wraps the program's monadic actions that need thunks with \code{delay}s. For
+example, whenever there is a call to \code{input} in the source language, in
+\ThunkLang{} it is translated to \hsinl{input >>= \v -> return (delay v)},
+meaning that instead of directly returning the result of \code{input}, we first
+wrap it in a thunk since the monadic interpreter does not do this on its own.
+
+This behaviour is crucial for performance since it avoids the allocation of
+unnecessary thunks during monadic computations. Unfortunately though, it
+invalidates our invariant.
+
+One of the optimisations PureCake implements is the transformation of
+\hsinl{delay (force (x))} expressions to just \code{x}. To prove it, we must
+prove that for any $v_1, v_2$, if $R_v(v_1, v_2)$ then $v_1$ is a thunk if and
+only if $v_2$ is a thunk. However, because we know that the result of
+\hsinl{delay (force (x))} is necessarily a thunk, we must show that after the
+transformation the result of \code{x} will also be a thunk.
+
+This can be done by assuming that the result of evaluating any variable will be
+a thunk. This is true for ordinary variables, because variables in call-by-name
+languages are the same as the evaluation of the delayed argument they represent.
+However, variables also exist inside modadic computations, and these are not
+delayed.
+\begin{figure}[h]
+  \centering
+  \input{figures/monadic-before.tikz}
+\end{figure}
+
+To mitigate this issue we carried out a 4-step plan:
+\begin{itemize}
+  \item We implemented an alternative unoptimised monadic interpreter that adds
+    \code{delay}s around the results of all the monadic actions.
+  \item Then, we removed the wrapping of monadic results during the PureCake
+    source to \ThunkLang{} pass to avoid duplicated \code{delay}s.
+  \item Next a transformation from the unoptimised monadic interpreter
+    to the optimised monadic interpreter was implemented by adding back the
+    wrapping of monadic results in \code{delay}s.
+  \item Lastly, we moved \code{delay\_force} before the transformation to the
+    optimised interpreter happens.
+\end{itemize}
+\begin{figure}[h]
+  \centering
+  \input{figures/monadic-after.tikz}
+\end{figure}
+
+\subsection{Stateful Thunk Semantics}
 
 \subsection{Template Styles}
 

@@ -1,0 +1,30 @@
+\begin{tikzpicture}
+  \tikzstyle{box} = [
+    rectangle, rounded corners, minimum width=2cm, minimum height=1cm,
+    text centered, draw=blue!80, line width=0.75pt
+  ]
+  \node (box1) [box] {PureCake source};
+  \node (box2) [box, below=1.0cm of box1] {
+    \shortstack {
+      \texttt{ThunkLang} \\ Unoptimised \\ monadic interpreter
+    }
+  };
+  \node (box3) [box, right=1.5cm of box2] {
+    \shortstack {
+      \texttt{ThunkLang} \\ Unoptimised \\ monadic interpreter
+    }
+  };
+  \node (box4) [box, text centered, below=1.5cm of box3] {
+      \shortstack {\ThunkLang{} \\ Optimised \\ monadic interpreter}
+  };
+  \node (box5) [rectangle, text centered, left=1.5cm of box4] {
+      \shortstack {Rest of compilation \\ pipeline}
+  };
+  \draw[-stealth] (box1.south) -- (box2.north) node[]{};
+  \draw[->](box2) to [bend left,looseness=1] node[above]
+    {\shortstack{\code{delay\_force}}} (box3);
+  \draw[->](box3.west) to [bend right,looseness=1] node[right]
+    {\shortstack{Wrap monadic results in \\ the program with \code{delay}s}}
+    (box4.west);
+  \draw[-stealth] (box4.west) -- (box5.east) node[]{};
+\end{tikzpicture}
