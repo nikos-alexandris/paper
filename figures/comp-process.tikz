@@ -1,0 +1,19 @@
+\begin{tikzpicture}
+  \tikzstyle{box} = [
+    rectangle, rounded corners, minimum width=2cm, minimum height=1cm,
+    text centered, draw=black, line width=0.75pt
+  ]
+  \node (box1) [box, draw=blue!80] {
+    \shortstack{PureCake \\ pure \\ lazy}
+  };
+  \node (box2) [box, right=0.85cm of box1, draw=orange!80] {
+    \shortstack{CakeML \\ impure \\ strict}
+  };
+
+  \node (box3) [box, right=0.85 of box2] {
+    Assembly
+  };
+
+  \draw[-stealth] (box1.east) -- (box2.west) node[]{};
+  \draw[-stealth] (box2.east) -- (box3.west) node[]{};
+\end{tikzpicture}

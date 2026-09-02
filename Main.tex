@@ -2,14 +2,24 @@
 
 \usepackage{tikz}
 \usetikzlibrary{calc,shapes.multipart,chains,arrows,arrows.meta}
+\usepackage{minted}
+
 \newcommand{\green}[1]{\color{green}\color{.!80!black}{#1}}
 \newcommand{\red}[1]{\color{red}{#1}}
+\newcommand{\hsinl}[1]{\mintinline[breaklines]{haskell}{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\ThunkLang}{\code{ThunkLang}}
+\newcommand{\EnvLang}{\code{EnvLang}}
+\newcommand{\StateLang}{\code{StateLang}}
+\newcommand{\FlatLang}{\code{FlatLang}}
+\newcommand{\ClosLang}{\code{ClosLang}}
 
 \begin{document}
 
 \title{Verified Compilation of Thunks in PureCake}
 
 \author{Nikolaos Alexandris}
+\orcid{0009-0002-2856-146X}
 \affiliation{%
   \institution{National and Kapodistrian University of Athens}
   \department{Department of Informatics and Telecommunications}
@@ -32,8 +42,8 @@
   replacing evaluated thunks with their values during garbage collection. In
   this work, we refine the representation of thunks in the PureCake verified
   compiler for pure lazy languages, we introduce thunks as first-class values in
-  PureCake's compilation target CakeML, and we add thunks to runtime and adapt
-  the garbage collector to optimise their usage.
+  PureCake's compilation target CakeML, and we adapt CakeML's garbage collector
+  to optimise their runtime handling.
 \end{abstract}
 
 \keywords{Compiler Verification, Lazy Functional Programming, Theorem Proving,
@@ -50,26 +60,90 @@
 \maketitle
 
 \section{Introduction}
-PureCake is the first end-to-end formally verified 
 
-ACM's consolidated article template, introduced in 2017, provides a
-consistent \LaTeX\ style for use across ACM publications, and
-incorporates accessibility and metadata-extraction functionality
-necessary for future Digital Library endeavors. Numerous ACM and
-SIG-specific \LaTeX\ templates have been examined, and their unique
-features incorporated into this single new template.
+PureCake is an end-to-end formally verified compiler for PureLang, a
+Haskell-inspired lazy purely functional programming language with monadic
+effects. The compiler's frontend implements a Haskell-like indentation sensitive
+syntax, a type checker, and demand analysis. Its backend consists of three
+intermediate languages that it uses to gradually transform a syntax tree of its
+source language to CakeML's source language.
 
-If you are new to publishing with ACM, this document is a valuable
-guide to the process of preparing your work for publication. If you
-have published with ACM before, this document provides insight and
-instruction into more recent changes to the article template.
+CakeML is a functional programming language based on a substantial subset of
+Standard ML and an ecosystem of proofs and tools built around the language. The
+ecosystem includes a verified compiler from its source language to assembly.
+PureCake uses this compiler to create the end-to-end verified compilation from
+PureLang to assembly. This process is similar to writing a Haskell compiler by
+transforming the Haskell source code to Standard ML source code, and then
+calling the Standard ML compiler to lower the generated syntax tree to machine
+code.
+\begin{figure}[h]
+  \centering
+  \input{figures/comp-process.tikz}
+  \caption{Overview of end-to-end compilation process.}
+  \Description{Overview of end-to-end compilation process.}
+  \label{fig:comp-process}
+\end{figure}
 
-The ``\verb|acmart|'' document class can be used to prepare articles
-for any ACM publication --- conference or journal, and for any stage
-of publication, from review to final ``camera-ready'' copy, to the
-author's own version, with {\itshape very} few changes to the source.
+PureLang and CakeML's source languages differ in semantics in two major ways:
+purity and evaluation strategy. In order for the PureCake compiler to transform
+a PureLang program to a CakeML one, it needs to convert the lazy (call-by-name)
+evaluation to strict (call-by-value) evaluation. This is traditionally achieved
+in lazy language compilers by introducing thunks. Consider the simple PureLang
+function definition \hsinl{suc n = n + 1}. Semantically, when a call like
+\hsinl{suc (f x)} happens, the \code{f x} call is only performed when the
+\code{+} operator demands its value in the body of \hsinl{suc}. In order to
+transform the program's evaluation strategy, the compiler extends the language
+with two special expressions: \code{delay} and \code{force}. Here, \code{delay}
+wraps an expression in a thunk, and \code{force} queries a thunk for its value.
+Therefore, the \hsinl{suc (f x)} lazy call could be simulated in a strict
+language by transforming the call to \hsinl{(force suc) (delay ((force f) (delay
+x)))} and the function to \hsinl{suc n = (force n) + 1}.
+
+PureCake achieves the evaluation strategy transformation by passing the source
+program through a series of intermediate languages, at each step changing the
+semantics of the language to bridge the gap between PureCake and CakeML's
+semantics. The three intermediate languages are \ThunkLang{}, \EnvLang{}, and
+\texttt{State\allowbreak Lang}.
+\begin{figure}[h]
+  \centering
+  \input{figures/comp-process-pure.tikz}
+  \caption{Overview of PureCake's compilation process.}
+  \Description{Overview of PureCake's compilation process.}
+  \label{fig:comp-process-pure}
+\end{figure}
+
+In \ThunkLang{}, the \code{delay} and \code{force} operators are introduced and
+placed around the appropriate expressions as described above, and the evaluation
+strategy is converted to call-by-value. While this is semantically enough, it
+would be inefficient in practice. In \ThunkLang{}, when a thunk is forced
+multiple times, its contained expression will be evaluated for each \code{force}
+separately. Since PureCake is a pure language, we know that the value of the
+thunk will always be the same regardless of when we evaluate it. So, ideally, we
+should only compute it once and then memoise its value for the rest of the
+\code{force}s.
+
+This problem is solved in \StateLang{}. \StateLang{}'s semantics employ a
+mutable memory called a store. Each time a \code{delay} is executed, a thunk is
+produced and appended to the store along with a flag stating that the thunk has
+not yet been evaluated. Then, the first \code{force} demanding the thunk's value
+will get a reference to the thunk in the store and evaluate its expression. It
+will then set the flag to state that the thunk has been evaluated, and overwrite
+the unevaluated expression with the result it computed. Any subsequent
+\code{force} will then directly use the value instead of re-computing the
+expression.
+
+Thunks are the core of lazy behaviour in programming languages like PureCake and
+Haskell, and thus their semantics should be as well defined as possible, and
+their runtime behaviour optimised. In this work we focus on three things to
+achieve these goals in PureCake:
+\begin{itemize}
+\item Strengthening the semantics of thunks in PureCake;
+\item Adding thunks as first-class constructs to CakeML;
+\item Optimising the runtime handling of thunks.
+\end{itemize}
 
 \section{Template Overview}
+\label{sec:purecake}
 As noted in the introduction, the ``\verb|acmart|'' document class can
 be used to prepare many different kinds of documentation --- a
 double-anonymous initial submission of a full-length technical paper, a
@@ -165,5 +239,7 @@ command has a ``short title'' parameter:
   \title[short title]{full title}
 \end{verbatim}
 
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
 
 \end{document}

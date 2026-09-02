@@ -1,0 +1,25 @@
+\begin{tikzpicture}
+  \tikzstyle{box} = [
+    rectangle, rounded corners, minimum width=2cm, minimum height=1cm,
+    text centered, draw=blue!80, line width=0.75pt
+  ]
+  \node (box1) [box] {
+    \shortstack{PureCake \\ pure \\ lazy \\ subst. semantics}
+  };
+  \node (box2) [box, right=0.85cm of box1] {
+    \shortstack {
+      \texttt{ThunkLang} \\ pure \\ strict \\ subst. semantics
+    }
+  };
+  \node (box3) [box, below=0.85cm of box1] {
+    \shortstack{\texttt{EnvLang} \\ pure \\ strict \\ env. semantics}
+  };
+  \node (box4) [box, right=0.85cm of box3] {
+    \shortstack {
+      \texttt{StateLang} \\ impure \\ strict \\ env. semantics
+    }
+  };
+  \draw[-stealth] (box1.east) -- (box2.west) node[]{};
+  \draw[-stealth] (box2.south) -- ++(0,-0.4cm) -- ++(-3.17cm,0) -- (box3.north) node[]{};
+  \draw[-stealth] (box3.east) -- (box4.west) node[]{};
+\end{tikzpicture}

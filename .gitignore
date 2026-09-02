@@ -1,2 +1,4 @@
 Main.*
 !Main.tex
+texput.*
+_minted
