@@ -11,7 +11,7 @@
   };
 
   \node (box3) [box, right=0.85 of box2] {
-    Assembly
+    machine code
   };
 
   \draw[-stealth] (box1.east) -- (box2.west) node[]{};
