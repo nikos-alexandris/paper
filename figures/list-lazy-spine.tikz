@@ -16,11 +16,9 @@
     \green{\texttt{E}}};
   \node[list] (E2)[right of=E1,xshift=-1cm] {\green{\texttt{E}}};
   \node[list] (E3)[right of=E2,xshift=-1cm] {\green{\texttt{E}}};
-  \node[list] (E4)[right of=E3,xshift=-1cm]
-    {\green{\texttt{E}} \nodepart{second} \texttt{[]}};
   \node[cell] (C1)[above of=E1,xshift=0.7cm,yshift=-1.5cm] {};
   \node[cell] (C2)[right of=C1,xshift=-1cm] {};
-  \node[cell] (C3)[right of=C2,xshift=-1cm] {};
+  \node[cell] (C3)[right of=C2,xshift=-1cm] {\nodepart{second} \code{[]}};
   \node[list] (NE2)[above of=C2,yshift=-1.5cm]
     {\red{\texttt{NE}} \nodepart{second} $\lambda x. 2$};
   \node[list] (NE1)[above of=NE2,yshift=-1.8cm,xshift=-2cm]
@@ -33,7 +31,6 @@
   \path[arr] (E3.two north |- E3.two east) -- (C3);
   \path[arr] (C1.two north |- C1.two east) -- (E2);
   \path[arr] (C2.two north |- C2.two east) -- (E3);
-  \path[arr] (C3.two north |- C3.two east) -- (E4);
   \path[arr] (C1.one north |- C1.one east) -- (NE1);
   \path[arr] (C2.one north |- C2.one east) -- (NE2);
   \path[arr] (C3.one north |- C3.one east) -- (NE3);

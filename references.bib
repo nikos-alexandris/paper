@@ -1,7 +1,164 @@
-@inproceedings{example2024,
-  author    = {John Smith and Jane Doe},
-  title     = {An Example Paper},
-  booktitle = {Proceedings of the 2024 ACM Conference},
-  year      = {2024},
-  publisher = {ACM}
+@article{PureCake,
+  author = {Kanabar, Hrutvik and Vivien, Samuel and Abrahamsson, Oskar and Myreen, Magnus O. and Norrish, Michael and Pohjola, Johannes {\r A}man and Zanetti, Riccardo},
+  title = {PureCake: A Verified Compiler for a Lazy Functional Language},
+  year = {2023},
+  issue_date = {June 2023},
+  publisher = {Association for Computing Machinery},
+  address = {New York, NY, USA},
+  volume = {7},
+  number = {PLDI},
+  url = {https://doi.org/10.1145/3591259},
+  doi = {10.1145/3591259},
+  abstract = {We present PureCake, a mechanically-verified compiler for PureLang, a lazy, purely functional programming language with monadic effects. PureLang syntax is Haskell-like and indentation-sensitive, and its constraint-based Hindley-Milner type system guarantees safe execution. We derive sound equational reasoning principles over its operational semantics, dramatically simplifying some proofs. We prove end-to-end correctness for the compilation of PureLang down to machine code---the first such result for any lazy language---by targeting CakeML and composing with its verified compiler. Multiple optimisation passes are necessary to handle realistic lazy idioms effectively. We develop PureCake entirely within the HOL4 interactive theorem prover.},
+  journal = {Proc. ACM Program. Lang.},
+  month = jun,
+  articleno = {145},
+  numpages = {25},
+  keywords = {HOL4, Haskell, compiler verification, interactive theorem proving}
+}
+
+@inproceedings{CakeML,
+  author = {Ramana Kumar and Magnus O. Myreen and Michael Norrish and Scott Owens},
+  title = {{CakeML}: A Verified Implementation of {ML}},
+  month = jan,
+  year = 2014,
+  pages = {179--191},
+  publisher = {ACM Press},
+  url = {https://cakeml.org/popl14.pdf},
+  booktitle = {Principles of Programming Languages ({POPL})},
+  doi = {10.1145/2535838.2535841}
+}
+
+@article{CakeMLCompiler,
+  title = {The verified {CakeML} compiler backend},
+  journal = {Journal of Functional Programming},
+  volume = {29},
+  publisher = {Cambridge University Press},
+  author = {Yong Kiam Tan and Magnus O. Myreen and Ramana Kumar and Anthony Fox and Scott Owens and Michael Norrish},
+  year = {2019},
+  url = {jfp19.pdf},
+  doi = {10.1017/S0956796818000229}
+}
+
+@book{ImplementationOfFunctional,
+  title={The implementation of functional programming languages (prentice-hall international series in computer science)},
+  author={Peyton Jones, Simon L},
+  year={1987},
+  publisher={Prentice-Hall, Inc.}
+}
+
+@article{HOL,
+  title={Introduction to HOL: A theorem proving environment for higher order logic},
+  author={Gordon, Michael JC and Melham, Tom F},
+  year={1993}
+}
+
+@article{bisimulation,
+  title={Proving congruence of bisimulation in functional programming languages},
+  author={Howe, Douglas J},
+  journal={Information and Computation},
+  volume={124},
+  number={2},
+  pages={103--112},
+  year={1996},
+  publisher={Elsevier}
+}
+
+@online{PureCakeGithub,
+  author       = {{CakeML}},
+  title        = {{PureCake}: A Verified Compiler for a Lazy Functional Language},
+  year         = {2026},
+  url          = {"https://github.com/CakeML/pure"},
+  note         = {GitHub repository},
+  lastaccessed = {September 4, 2026}
+}
+
+@online{CakeMLGithub,
+  author       = {{CakeML}},
+  title        = {{CakeML}: A Verified Implementation of ML},
+  year         = {2026},
+  url          = {"https://github.com/CakeML/cakeml"},
+  note         = {GitHub repository},
+  lastaccessed = {September 4, 2026}
+}
+
+@incollection{monads,
+  title={Monads and effects},
+  author={Benton, Nick and Hughes, John and Moggi, Eugenio},
+  booktitle={International Summer School on Applied Semantics},
+  pages={42--122},
+  year={2000},
+  publisher={Springer}
+}
+
+@article{itrees,
+  title={Interaction trees: representing recursive and impure programs in Coq},
+  author={Xia, Li-yao and Zakowski, Yannick and He, Paul and Hur, Chung-Kil and Malecha, Gregory and Pierce, Benjamin C and Zdancewic, Steve},
+  journal={Proceedings of the ACM on Programming Languages},
+  volume={4},
+  number={POPL},
+  pages={1--32},
+  year={2019},
+  publisher={ACM New York, NY, USA}
+}
+
+@inproceedings{van1999optimising,
+  title={Optimising recursive functions yielding multiple results in tuples in a lazy functional language},
+  author={van Groningen, John HG},
+  booktitle={Symposium on Implementation and Application of Functional Languages},
+  pages={59--76},
+  year={1999},
+  organization={Springer}
+}
+
+@inproceedings{lazygc,
+  title={Generational garbage collection for lazy graph reduction},
+  author={Seward, Julian},
+  booktitle={Memory Management: International Workshop IWMM 92 St. Malo, France, September 17--19, 1992 Proceedings},
+  pages={200--217},
+  year={1992},
+  organization={Springer}
+}
+
+
+@inproceedings{compcert,
+  title={CompCert-a formally verified optimizing compiler},
+  author={Leroy, Xavier and Blazy, Sandrine and K{\"a}stner, Daniel and Schommer, Bernhard and Pister, Markus and Ferdinand, Christian},
+  booktitle={ERTS 2016: Embedded Real Time Software and Systems, 8th European Congress},
+  year={2016}
+}
+
+@inproceedings{certicoq,
+  title={CertiCoq: A verified compiler for Coq},
+  author={Anand, Abhishek and Appel, Andrew and Morrisett, Greg and Paraskevopoulou, Zoe and Pollack, Randy and Belanger, Olivier Savary and Sozeau, Matthieu and Weaver, Matthew},
+  booktitle={The third international workshop on Coq for programming languages (CoqPL)},
+  year={2017}
+}
+
+@article{optsforthunks,
+  title={Code optimizations for lazy evaluation},
+  author={Bloss, Adrienne and Hudak, Paul and Young, Jonathan},
+  journal={Lisp and Symbolic Computation},
+  volume={1},
+  number={2},
+  pages={147--164},
+  year={1988},
+  publisher={Springer}
+}
+
+@inproceedings{thunksflow,
+  title={Optimizing lazy functional programs using flow inference},
+  author={Fax{\'e}n, Karl-Filip},
+  booktitle={International Static Analysis Symposium},
+  pages={136--153},
+  year={1995},
+  organization={Springer}
+}
+
+@inproceedings{thunk-recycling,
+  title={Thunk recycling for lazy functional languages: operational semantics and correctness},
+  author={Takano, Yasunao and Iwasaki, Hideya},
+  booktitle={Proceedings of the 30th Annual ACM Symposium on Applied Computing},
+  pages={2079--2086},
+  year={2015}
 }

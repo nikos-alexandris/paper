@@ -1,5 +1,25 @@
 \documentclass[sigconf]{acmart}
 
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    Bib\TeX}}}
+
+%% Rights management information.  This information is sent to you
+%% when you complete the rights form.  These commands have SAMPLE
+%% values in them; it is your responsibility as an author to replace
+%% the commands and values with those provided to you when you
+%% complete the rights form.
+\setcopyright{acmlicensed}
+\copyrightyear{2026}
+\acmYear{2026}
+\acmDOI{XXXXXXX.XXXXXXX}
+%% These commands are for a PROCEEDINGS abstract or paper.
+\acmConference[IFL '26]{The 38th Symposium on
+Implementation and Application of Functional Languages}{October 28--30,
+  2026}{Gothenburg, Sweden}
+
 \usepackage{tikz}
 \usetikzlibrary{calc,shapes.multipart,chains,arrows,arrows.meta}
 \usepackage{minted}
@@ -20,7 +40,7 @@
 
 \begin{document}
 
-\title{Verified Compilation of Thunks in PureCake}
+\title{Improving Thunks in the Verified PureCake compiler}
 
 \author{Nikolaos Alexandris}
 \orcid{0009-0002-2856-146X}
@@ -50,6 +70,36 @@
   to optimise their runtime handling. This paper describes on-going work.
 \end{abstract}
 
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10011007.10010940.10010992.10010998.10010999</concept_id>
+       <concept_desc>Software and its engineering~Software verification</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011006.10011041</concept_id>
+       <concept_desc>Software and its engineering~Compilers</concept_desc>
+       <concept_significance>300</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011006.10011008.10011009.10011012</concept_id>
+       <concept_desc>Software and its engineering~Functional languages</concept_desc>
+       <concept_significance>300</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10003752.10003790.10003800</concept_id>
+       <concept_desc>Theory of computation~Higher order logic</concept_desc>
+       <concept_significance>100</concept_significance>
+       </concept>
+ </ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~Software verification}
+\ccsdesc[300]{Software and its engineering~Compilers}
+\ccsdesc[300]{Software and its engineering~Functional languages}
+\ccsdesc[100]{Theory of computation~Higher order logic}
+
 \keywords{Compiler Verification, Lazy Functional Programming, Theorem Proving,
           Haskell, HOL4, PureCake, CakeML}
 
@@ -68,19 +118,19 @@
 
 PureCake is an end-to-end formally verified compiler for PureLang, a
 Haskell-inspired lazy purely functional programming language with monadic
-effects. The compiler's frontend implements a Haskell-like indentation sensitive
-syntax, a type checker, and demand analysis. Its backend consists of three
-intermediate languages that it uses to gradually transform a syntax tree of its
-source language to CakeML's source language.
+effects \cite{PureCake}. The compiler's frontend implements a Haskell-like
+indentation sensitive syntax, a type checker, and demand analysis. Its backend
+consists of three intermediate languages that it uses to gradually transform a
+syntax tree of its source language to CakeML's source language.
 
 CakeML is a functional programming language based on a substantial subset of
-Standard ML and an ecosystem of proofs and tools built around the language. The
-ecosystem includes a verified compiler from its source language to machine code.
-PureCake uses this compiler to create the end-to-end verified compilation from
-PureLang to machine code. This process is similar to writing a Haskell compiler by
-transforming the Haskell source code to Standard ML source code, and then
-calling the Standard ML compiler to lower the generated syntax tree to machine
-code.
+Standard ML and an ecosystem of proofs and tools built around the language
+\cite{CakeML}. The ecosystem includes a verified compiler from its source
+language to machine code \cite{CakeMLCompiler}. PureCake uses this compiler to
+create the end-to-end verified compilation from PureLang to machine code. This
+process is similar to writing a Haskell compiler by transforming the Haskell
+source code to Standard ML source code, and then calling the Standard ML
+compiler to lower the generated syntax tree to machine code.
 \begin{figure}[h]
   \centering
   \input{figures/comp-process.tikz}
@@ -92,23 +142,32 @@ code.
 PureLang and CakeML's source languages differ in semantics in two major ways:
 purity and evaluation strategy. In order for the PureCake compiler to transform
 a PureLang program to a CakeML one, it needs to convert the lazy (call-by-name)
-evaluation to strict (call-by-value) evaluation. This is traditionally achieved
-in lazy language compilers by introducing thunks. Consider the simple PureLang
-function definition \hsinl{suc n = n + 1}. Semantically, when a call like
-\hsinl{suc (f x)} happens, the \code{f x} call is only performed when the
-\code{+} operator demands its value in the body of \hsinl{suc}. In order to
-transform the program's evaluation strategy, the compiler extends the language
-with two special expressions: \code{delay} and \code{force}. Here, \code{delay}
-wraps an expression in a thunk, and \code{force} queries a thunk for its value.
+evaluation to strict (call-by-value) evaluation. To achieve this, PureCake
+follows the conventional translation to thunks \cite{ImplementationOfFunctional}.
+
+To illustrate how thunks are used, consider this simple PureLang program:
+\begin{minted}{haskell}
+suc n = n + 1
+result = suc (f x)
+\end{minted}
+Semantically, when a call like \hsinl{suc (f
+x)} happens, the \code{f x} call is only performed when the \code{+} operator
+demands its value in the body of \hsinl{suc}. In order to transform the
+program's evaluation strategy, the compiler extends the language with two
+special expressions: \code{delay} and \code{force}. Here, \code{delay} wraps an
+expression in a thunk, and \code{force} queries a thunk for its value.
 Therefore, the \hsinl{suc (f x)} lazy call could be simulated in a strict
-language by transforming the call to \hsinl{(force suc) (delay ((force f) (delay
-x)))} and the function to \hsinl{suc n = (force n) + 1}.
+language by transforming the program to
+\begin{minted}{haskell}
+suc n = (force n) + 1
+result = suc (delay ((force f) (delay x)))
+\end{minted}
 
 PureCake achieves the evaluation strategy transformation by passing the source
 program through a series of intermediate languages, at each step changing the
 semantics of the language to bridge the gap between PureCake and CakeML's
 semantics. The three intermediate languages are \ThunkLang{}, \EnvLang{}, and
-\texttt{State\allowbreak Lang}.
+\texttt{State-\allowbreak Lang}.
 \begin{figure}[h]
   \centering
   \input{figures/comp-process-pure.tikz}
@@ -133,19 +192,29 @@ produced and appended to the store along with a flag stating that the thunk has
 not yet been evaluated. Then, the first \code{force} demanding the thunk's value
 will get a reference to the thunk in the store and evaluate its expression. It
 will then set the flag to state that the thunk has been evaluated, and overwrite
-the unevaluated expression with the result it computed. Any subsequent
+the unevaluated expression with the result it computed. All subsequent calls to
 \code{force} will then directly use the value instead of re-computing the
 expression.
 
 Thunks are the core of lazy behaviour in programming languages like PureCake and
-Haskell, and thus their semantics should be as well defined as possible, and
-their runtime behaviour optimised. In this work we focus on three things to
-achieve these goals in PureCake:
+Haskell and thus they must be as optimised as possible. There are mainly two
+ways of achieving this: not generating unnecessary thunks, and `inlining' thunks
+during the runtime (\autoref{fig:teaser}) \cite{lazygc}. Prior to our work,
+PureCake could prune unnecessary thunks during \ThunkLang{} optimisations, but
+it couldn't achieve runtime optimisations due to the lack of proper
+representation of thunks in lower intermediate representations.
+
+In this paper we describe the following contributions to PureCake and CakeML:
 \begin{itemize}
 \item Strengthening the semantics of thunks in PureCake;
 \item Adding thunks as first-class constructs to CakeML;
 \item Optimising the runtime handling of thunks.
 \end{itemize}
+PureCake and CakeML are implemented in the HOL4 interactive theorem prover
+\cite{HOL} and our work for this paper can be found in the CakeML and PureCake
+source repositories \cite{PureCakeGithub, CakeMLGithub}. This project is a work
+in progress; we have fully implemented our first two goals, and are currently
+working on the last one.
 
 \section{Strengthening the Semantics of \code{force} in PureCake}
 \label{sec:purecake}
@@ -161,20 +230,22 @@ that must evaluate to a thunk.
     {|[x|] = \code{Thunk}\ e& |[e|] = u}
     {|[\code{force}\ x|] = u}
   \]
-  \caption{Derivation rules of \ThunkLang{}'s thunk operators}
-  \Description{Derivation rules of \ThunkLang{}'s thunk operators}
+  \caption{Derivation rules of \ThunkLang{}'s thunk operators.}
+  \Description{Derivation rules of \ThunkLang{}'s thunk operators.}
 \end{figure}
-Our first change is to refine this semantics by asserting that the evaluation of
-a \code{force} can never result in another thunk. This should always be true and
-we carry this assertion all the way down to the garbage collection proofs.
+Our first change is to make the semantics of \code{force} stricter to enable
+optimisations further down the pipeline. Specifically, we assert that the
+evaluation of a \code{force} can never result in another thunk. This should
+always be true and we carry this assertion all the way down to the garbage
+collection proofs.
 \begin{figure}[h]
   \[
     \inference
     {|[x|] = \code{Thunk}\ e& |[e|] = u& \nexists t.\ u = \code{Thunk}\ t}
     {|[\code{force}\ x|] = u}
   \]
-  \caption{Stronger version of \code{force}}
-  \Description{Stronger version of \code{force}}
+  \caption{Stronger version of \code{force}.}
+  \Description{Stronger version of \code{force}.}
 \end{figure}
 
 Since PureCake is formally verified, it's our responsibility to prove this
@@ -182,7 +253,7 @@ assertion after each transformation the program goes through. A transformation
 is a pair of relations $(R_e,R_v)$ which relate two expressions and two values
 (the results of evaluating the related expressions) respectively. These
 transformations is the way optimisations and lowering from one intermediate
-language to another are implemented.
+language to another are implemented \cite{bisimulation}.
 
 To prove that optimisations in \ThunkLang{} preserve our assertion, we have to
 prove that the relation implementing the optimisation doesn't invalidate it.
@@ -200,17 +271,18 @@ hold and how we fixed them.
 \subsection{Thunks and Monadic Effects}
 \label{subsec:thunks-and-monads}
 PureCake like most other pure functional languages employs monads to model
-effectful computations. The evaluation of a \ThunkLang{} program at the top
-level looks like a loop over monadic actions that might possibly interact with
-state, such as writing and reading from a mutable array or writing to the
-console. Internally, these operations call the usual pure semantics without
-exposing any of the state that is being handled.
+effectful computations \cite{monads}. The evaluation of a
+\texttt{Thunk-\allowbreak Lang} program
+at the top level looks like a loop over monadic actions that might possibly
+interact with state, such as writing and reading from a mutable array or writing
+to the console. Internally, these operations call the usual pure semantics
+without exposing any of the state that is being handled.
 
-On the side of verification, PureCake uses Interaction Tree Semantics to reason
-about such stateful computations. Interaction trees support the definition of
-interpreters that handle monadic actions, and bisimulation proofs can be used to
-show equivalence between interaction trees, in a similar fashion to the proofs
-we described for program transformations.
+On the side of verification, PureCake uses Interaction Tree (ITree) Semantics
+\cite{itrees} to reason about such stateful computations. Interaction trees
+support the definition of interpreters that handle monadic actions, and
+bisimulation proofs can be used to show equivalence between interaction trees,
+in a similar fashion to the proofs we described for program transformations.
 
 Let's consider a simple function that interleaves pure computation with side
 effects:
@@ -286,15 +358,15 @@ To mitigate this issue we carried out a 4-step plan:
   \input{figures/monadic-after.tikz}
   \caption{
     Adapted translation of monadic expressions from PureCake source to
-    \ThunkLang{}}
+    \ThunkLang{}.}
   \Description{
     Adapted translation of monadic expressions from PureCake source to
-    \ThunkLang{}}
+    \ThunkLang{}.}
 \end{figure}
 This change enables us to have an unoptimised monadic interpreter that we can
-target for our optimisation so we can prove the transition, and keep the
-optimised interpreter with a transformation between the two so we don't affect
-the overall performance.
+target so we can prove the transition sound, and keep the optimised interpreter
+with a transformation between the two so we don't affect the overall
+performance.
 
 \subsection{Stateful Thunk Semantics}
 
@@ -302,10 +374,14 @@ the overall performance.
 and the boundary between PureCake and CakeML. It is also the only intermediate
 representation with a stateful semantics which means it can represent stateful
 thunks. Before \StateLang{}, thunks are stateless; when evaluating an expression
-like \hsinl{(force f) (delay ((force g) x))}, the argument \code{g x} is turned
-into a thunk value and whenever the corresponding parameter is used in the body
-of f, the expression \code{g x} is computed anew without the possibility of
-memoising the result, as that would require some stateful operation.
+like
+\begin{minted}{haskell}
+  (force f) (delay ((force g) x))
+\end{minted}
+the argument \code{g x} is turned into a thunk value and whenever the
+corresponding parameter is used in the body of f, the expression \code{g x} is
+computed anew without the possibility of memoising the result, as that would
+require some stateful operation.
 
 \StateLang{}'s semantics provide a solution for this problem by employing a
 mutable state. This state is a store for mutable arrays, where each array
@@ -313,9 +389,10 @@ element can be mutated in place.
 
 Thunks in \StateLang{} exist in two forms: stateless and stateful. The stateless
 thunks are the same as in the previous intermediate representations, and exist
-so that compilation from \EnvLang{} can directly target them. Prior to this
-work, \StateLang{}'s store is used to implement stateful thunks in an ad-hoc
-way. Instead of having a proper representation for thunks, a thunk is
+so that compilation from \EnvLang{} can directly target them.
+
+Prior to this work, \StateLang{}'s store is used to implement stateful thunks in
+an ad-hoc way. Instead of having a proper representation for thunks, a thunk is
 represented as a two value array: the first value is a boolean flag and the
 second value is the actual value. When a thunk is needed, the array is allocated
 with the flag set to signal that the thunk is not yet evaluated, and the second
@@ -337,9 +414,9 @@ data StoreV
 \end{minted}
 and \hsinl{ThunkMode} is defined as
 \begin{minted}{haskell}
-  data ThunkMode
-    = Evaluated
-    | NotEvaluated
+data ThunkMode
+  = Evaluated
+  | NotEvaluated
 \end{minted}
 With this defined, the mutable force semantics is as follows: the evaluation
 first checks that the index is in bounds of the store and then checks the value
@@ -574,7 +651,7 @@ eval ForceThunk st vs =
                         Just st'' -> (st'', res)
 \end{minted}
 The semantics of forcing stateful thunks here is the most important code sample
-in this thesis, as it captures exactly our desired semantics.
+in this paper, as it captures exactly our desired semantics.
 
 This semantics is very similar for most of the rest of the intermediate
 languages, until we get to \WordLang{}, the language where the garbage collector
@@ -648,6 +725,34 @@ collection, a list (or any data structure for that matter) that has been partly
 or fully evaluated will have the same memory representation for that part as if
 it had been strictly evaluated.
 
+\section{Related Work}
+\label{sec:related-work}
+This paper has to do with verified end-to-end compilation and, in particular,
+the treatment of thunks throughout the compilation pipeline and optimisations
+for them. In this section, we give an overview of related work on these fields.
+
+The foundational example of end-to-end formally verified compilers is CompCert
+\cite{compcert}. It provides a verified optimising compiler from a substantial
+subset of C to machine code, with correctness established through
+semantic-preservation proofs across its compilation passes. Even though CompCert
+laid the foundations for verified compilers it verifies a low-level language
+compared to CakeML and PureCake. Apart from CakeML, the most well-known verified
+compiler for a high-level language is CertiRocq (formerly known as CertiCoq)
+\cite{certicoq}, a verified compiler from Gallina (Rocq's source language) to
+WebAssembly and Clight (CompCert's source language).
+
+Regarding our treatment of thunks, there are numerous papers focused on
+optimising them since they are the main performance bottleneck between strict
+and lazy languages. There is work specifically for garbage collection for lazy
+languages \cite{lazygc} that also describes the thunk inlining we have
+implemented. There is also work on code optimisations for lazy languages using
+path analysis \cite{optsforthunks} and flow inference \cite{thunksflow} as well
+as a technique called `thunk recycling' \cite{thunk-recycling} that identifies
+thunks that can be reused by recursive functions, therefore eliminating the
+generation and destruction of very short-lived thunk values. We hope to
+implement these optimisations in the future to optimise PureCake's runtime even
+more.
+
 \section{Conclusion}
 \label{sec:conclusion}
 
@@ -656,7 +761,7 @@ its compilation pipeline, from the highest level down to the garbage collector
 and through numerous intermediate representations. This has come to show that
 our semantics is robust and correctly translateable to machine code and is to
 our knowledge the first end-to-end verified treatment of thunks and their
-behaviour.
+behaviour as first-class values.
 
 Our proofs have touched critical parts of the lifetime of thunks during
 compilation, such as their usage in the monadic interpreter and their
