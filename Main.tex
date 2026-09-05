@@ -40,7 +40,7 @@ Implementation and Application of Functional Languages}{October 28--30,
 
 \begin{document}
 
-\title{Improving Thunks in the Verified PureCake compiler}
+\title{Improving Thunks in the Verified PureCake Compiler}
 
 \author{Nikolaos Alexandris}
 \orcid{0009-0002-2856-146X}
@@ -59,15 +59,15 @@ Implementation and Application of Functional Languages}{October 28--30,
 \email{myreen@chalmers.se}
 
 \begin{abstract}
-  Programming languages that are lazy by default, such as Haskell, need their
-  compilers to handle thunks as efficiently as possible to minimise the lazy
-  behaviour's impact on the runtime. This is achieved both during compile time
-  by avoiding the generation of unnecessary thunks, and during the runtime by
-  replacing evaluated thunks with their values during garbage collection. In
-  this work, we refine the representation of thunks in the PureCake verified
-  compiler for pure lazy languages, we introduce thunks as first-class values in
-  PureCake's compilation target CakeML, and we adapt CakeML's garbage collector
-  to optimise their runtime handling. This paper describes on-going work.
+Programming languages that are lazy by default, such as Haskell, need their
+compilers to handle thunks as efficiently as possible to minimise the lazy
+behaviour's impact on the runtime. This is achieved both during compile time
+by avoiding the generation of unnecessary thunks, and during the runtime by
+replacing evaluated thunks with their values during garbage collection. In
+this work, we refine the representation of thunks in the PureCake verified
+compiler for pure lazy languages, we introduce thunks as first-class values in
+PureCake's compilation target CakeML, and we adapt CakeML's garbage collector
+to optimise their runtime handling. This paper describes on-going work.
 \end{abstract}
 
 \begin{CCSXML}
